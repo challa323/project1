@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Snake And Ladder</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color:linear-gradient(red,yellow);
+            font-family: Arial, sans-serif;
+        }
+
+        .setup-panel {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        label {
+            font-size: 18px;
+        }
+
+        select {
+            padding: 8px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        .start-button {
+            margin-top: 20px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: repeat(10, 80px);
+            grid-template-rows: repeat(10, 80px);
+            background-color: rgb(239, 146, 79);
+            background-image: url('/assets/snake.png');
+            background-size: 800px 800px;
+            background-position: center;
+            background-repeat: no-repeat;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+        }
+
+        .container div {
+            border: 2px solid black;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            position: relative;
+            color: #fff;
+            background-color: rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 80px;
+            width: 80px;
+        }
+
+        .token {
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        .player1 {
+            background-color: green;
+        }
+
+        .player2 {
+            background-color: blue;
+        }
+
+        .player3 {
+            background-color: orange;
+        }
+
+        .player4 {
+            background-color: purple;
+        }
+
+        .dice-area {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #diceImage {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 10px;
+        }
+
+        .dice-button {
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 25px;
+            font-size: 18px;
+            border: none;
+            background-color: #333;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #555;
+        }
+
+        .player-info {
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="setup-panel">
+        <label for="numPlayers">Select Number of Players:</label>
+        <select id="numPlayers">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+        </select>
+        <button onclick="startGame()">Start Game</button>
+    </div>
+
+    <div class="container">
+    </div>
+
+    <div class="dice-area" style="display: none;">
+        <img id="diceImage" src="/assets/D-1.webp" alt="Dice">
+        <div class="dice-button">
+            <button onclick="roll()">Roll Dice</button>
+            <div class="player-info">Current Player: <span id="currentPlayer"></span></div>
+        </div>
+    </div>
+
+    <audio id="diceSound" src="/assets/dice-sound-288763.mp3"></audio>
+    <audio id="snakeHiss" src="/assets/snake_hissing-sound-natural-sfx-253792.mp3"></audio>
+
+    <script>
+        const container = document.querySelector('.container');
+        const numPlayersSelect = document.getElementById('numPlayers');
+        const startButton = document.querySelector('.setup-panel button');
+        const diceAreaDiv = document.querySelector('.dice-area');
+        const diceImage = document.getElementById('diceImage');
+        const currentPlayerSpan = document.getElementById('currentPlayer');
+        const diceSound = document.getElementById('diceSound');
+        const snakeHiss = document.getElementById('snakeHiss');
+        let tileCount = 100;
+        let players = [];
+        let currentPlayerIndex = 0;
+        let gameStarted = false;
+
+        // Create the game board tiles
+        for (let i = 1; i <= tileCount; i++) {
+            const tile = document.createElement('div');
+            tile.textContent = i;
+            tile.classList.add(`div${i}`);
+            const row = Math.ceil(i / 10);
+            const col = (i - 1) % 10 + 1;
+
+            let gridCol;
+            if (row % 2 === 0) {
+                gridCol = 11 - col;
+            } else {
+                gridCol = col;
+            }
+
+            tile.style.gridColumnStart = gridCol;
+            tile.style.gridRowStart = 11 - row;
+            container.appendChild(tile);
+        }
+
+        function startGame() {
+            const numPlayers = parseInt(numPlayersSelect.value);
+            if (numPlayers >= 1 && numPlayers <= 4) {
+                players = Array.from({ length: numPlayers }, (_, i) => ({
+                    id: i + 1,
+                    position: 0,
+                    element: createToken(`player${i + 1}`)
+                }));
+
+                // Place initial tokens on the starting tile
+                const startTile = document.querySelector('.div1');
+                if (startTile) {
+                    players.forEach(player => startTile.appendChild(player.element));
+                }
+
+                // Hide the setup panel and show the game controls
+                document.querySelector('.setup-panel').style.display = 'none';
+                diceAreaDiv.style.display = 'block';
+                currentPlayerIndex = 0;
+                updateCurrentPlayerDisplay();
+                gameStarted = true;
+            } else {
+                alert("Please select a valid number of players (1-4).");
+            }
+        }
+
+        function createToken(className) {
+            const token = document.createElement('div');
+            token.className = `token ${className}`;
+            return token;
+        }
+
+        function roll() {
+            if (!gameStarted) {
+                alert("Please start the game first!");
+                return;
+            }
+
+            const currentPlayer = players[currentPlayerIndex];
+
+            // Play dice sound
+            if (diceSound) {
+                diceSound.currentTime = 0;
+                diceSound.play();
+            }
+
+            // Generate a random dice roll (1-6)
+            const random = 1 + Math.floor(Math.random() * 6);
+            console.log(`Player ${currentPlayer.id} rolled:`, random);
+
+            // Update the dice image
+            diceImage.src = `/assets/D-${random}.webp`;
+            diceImage.alt = `Dice showing ${random}`;
+
+            // Calculate the new position
+            let newPosition = currentPlayer.position + random;
+
+            if (newPosition <= 100) {
+                currentPlayer.position = newPosition;
+
+                // Ladders
+                if (currentPlayer.position === 7) currentPlayer.position = 45;
+                if (currentPlayer.position === 34) currentPlayer.position = 66;
+                if (currentPlayer.position === 40) currentPlayer.position = 71;
+                if (currentPlayer.position === 62) currentPlayer.position = 81;
+                if (currentPlayer.position === 74) currentPlayer.position = 96;
+                if (currentPlayer.position === 48) currentPlayer.position = 91;
+
+                // Snakes
+                if (currentPlayer.position === 37) {
+                    currentPlayer.position = 5;
+                    playSound(snakeHiss);
+                } else if (currentPlayer.position === 33) {
+                    currentPlayer.position = 10;
+                    playSound(snakeHiss);
+                } else if (currentPlayer.position === 57) {
+                    currentPlayer.position = 19;
+                    playSound(snakeHiss);
+                } else if (currentPlayer.position === 70) {
+                    currentPlayer.position = 31;
+                    playSound(snakeHiss);
+                } else if (currentPlayer.position === 92) {
+                    currentPlayer.position = 55;
+                    playSound(snakeHiss);
+                } else if (currentPlayer.position === 97) {
+                    currentPlayer.position = 56;
+                    playSound(snakeHiss);
+                }
+
+                // Move the token to the new position
+                moveToken(currentPlayer);
+                console.log(`Player ${currentPlayer.id} now at:`, currentPlayer.position);
+
+                // Check for win condition
+                if (currentPlayer.position === 100) {
+                    alert(`Congratulations! Player ${currentPlayer.id} won!`);
+                    resetGame();
+                    return;
+                }
+
+                // Switch to the next player only if the roll was not a six
+                if (random !== 6) {
+                    currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+                    updateCurrentPlayerDisplay();
+                } else {
+                    console.log(`Player ${currentPlayer.id} rolled a 6! Taking another turn.`);
+                    // The currentPlayerIndex remains the same, so the same player gets another turn.
+                }
+            }
+        }
+
+        function moveToken(player) {
+            // Remove the existing token
+            const currentTile = document.querySelector(`.div${player.position}`);
+            if (currentTile && currentTile.contains(player.element)) {
+                currentTile.removeChild(player.element);
+            }
+
+            // Create a new token at the new position
+            const newTile = document.querySelector(`.div${player.position}`);
+            if (newTile) {
+                newTile.appendChild(player.element);
+            }
+        }
+
+        function playSound(soundElement) {
+            if (soundElement) {
+                soundElement.currentTime = 0;
+                soundElement.play();
+            }
+        }
+
+        function updateCurrentPlayerDisplay() {
+            currentPlayerSpan.textContent = players[currentPlayerIndex].id;
+        }
+
+        function resetGame() {
+            gameStarted = false;
+            players = [];
+            currentPlayerIndex = 0;
+            diceImage.src = `/assets/D-1.webp`;
+            diceImage.alt = `Dice`;
+
+            // Reset token positions on the board
+            const allTokens = document.querySelectorAll('.token');
+            allTokens.forEach(token => token.remove());
+
+            // Show the setup panel and hide the game controls
+            document.querySelector('.setup-panel').style.display = 'flex';
+            diceAreaDiv.style.display = 'none';
+        }
+    </script>
+
+</body>
+</html>
